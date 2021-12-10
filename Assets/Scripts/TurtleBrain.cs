@@ -34,7 +34,11 @@ public class TurtleBrain : Brain
         {
             _queen.velocity = dir * _queen.moveSpeed / 2;
         }
-        _rb.position += (Vector2)GetComponent<Queen>().velocity * Time.deltaTime;
+
+        if (_rb != null)
+        {
+            _rb.position += (Vector2)GetComponent<Queen>().velocity * Time.deltaTime;
+        }
     }
 
     public override void Behave()

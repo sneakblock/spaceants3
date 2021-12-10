@@ -55,6 +55,8 @@ public class GameManager : MonoBehaviour
     
     public float minEnemyMoveSpeed;
     public float maxEnemyMoveSpeed;
+
+    public float enemyKillThreshold;
     // public float enemyAttractForce;
     // public float enemyRepulseForce;
     // public float enemySuckMultiplier;
@@ -165,6 +167,7 @@ public class GameManager : MonoBehaviour
     [ContextMenu("Init Enemies")]
     public void InitEnemies()
     {
+        enemyKillThreshold = playerQueen.antSpeedKillThreshold;
         for (int i = 0; i < maxNumEnemies; i++)
         {
             GameObject enemy = GameObject.Instantiate(queenGO);
@@ -234,8 +237,8 @@ public class GameManager : MonoBehaviour
                 enemyQueen.antMass = playerInitAntMass;
                 enemyQueen.antDrag = playerInitAntDrag;
                 enemyQueen.antAngularDrag = playerInitAntAngularDrag;
-                enemyQueen.antSpeedKillThreshold = playerAntKillThreshold + Random.Range(-.5f, .5f);
-                enemyQueen.queenSpeedKillThreshold = playerAntKillThreshold * 2 + Random.Range(-.5f, .5f);
+                enemyQueen.antSpeedKillThreshold = enemyKillThreshold + Random.Range(-.5f, .5f);
+                enemyQueen.queenSpeedKillThreshold = enemyKillThreshold * 2 + Random.Range(-.5f, .5f);
                 enemyQueen.attractForce = playerQueen.attractForce + Random.Range(-5f, 15f);
                 enemyQueen.repulseForce = playerQueen.repulseForce + Random.Range(-5f, 15f);
                 enemyQueen.suckMultipler = playerQueen.suckMultipler + Random.Range(-2f, 5f);
@@ -377,6 +380,7 @@ public class GameManager : MonoBehaviour
     public void OnKillQueen(Queen q)
     {
         SpawnEnemy();
+        enemyKillThreshold += .25f;
         switch (q.gameObject.name)
         {
             case "Chaser":
