@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Random = UnityEngine.Random;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -12,6 +13,9 @@ public class GameManager : MonoBehaviour
     private static GameManager _instance;
 
     public static GameManager Instance { get { return _instance; } }
+    
+    // ============== WOW =========
+    [Header("Optimizations")] public int maxAntsAllowed;
     
     // ========== CAMERA ==========
     private Camera _currCamera;
@@ -42,23 +46,24 @@ public class GameManager : MonoBehaviour
     public GameObject player;
     private Queen playerQueen;
     private Vector3 _velocity;
+    private Vector3 stageDimensions;
     
     // ========== ENEMIES ==========
     [Header("Enemies")]
     
-    public int maxNumEnemies = 10;
+    public int maxNumEnemies = 5;
     
     public float minEnemyMoveSpeed;
     public float maxEnemyMoveSpeed;
-    public float enemyAttractForce;
-    public float enemyRepulseForce;
-    public float enemySuckMultiplier;
+    // public float enemyAttractForce;
+    // public float enemyRepulseForce;
+    // public float enemySuckMultiplier;
+    // public float enemyAntMass;
+    // public float enemyAntDrag;
+    // public float enemyAntAngularDrag;
     
-    public float enemyAntMass;
-    public float enemyAntDrag;
-    public float enemyAntAngularDrag;
-    public float enemyAntKillThreshold;
-    public float enemyQueenKillThreshold;
+    // public float enemyAntKillThreshold;
+    // public float enemyQueenKillThreshold;
     
     private List<GameObject> enemies;
     [SerializeField] public int numCurrEnemies;
@@ -90,19 +95,25 @@ public class GameManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        Cursor.visible = false;
+        stageDimensions = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width, Screen.height, 0));
+        
         // ======= PLAYER =======
         InitPlayer();
         
         // ==== CAMERA AND SCREEN BORDERS ===
         _currCamera = Camera.main;
-        _screenColliderManager = gameObject.AddComponent<ScreenColliderManager>();
+        // _screenColliderManager = gameObject.AddComponent<ScreenColliderManager>();
         
         // ======= ENEMIES =======
         enemies = new List<GameObject>();
         spawnZones = new List<Rect>();
         InitSpawnZones();
         InitEnemies();
-        
+        for (int i = 0; i < 4; i++)
+        {
+            SpawnEnemy();
+        }
     }
 
     void InitPlayer()
@@ -179,25 +190,55 @@ public class GameManager : MonoBehaviour
             if (!enemy.activeInHierarchy)
             {
                 enemy.SetActive(true);
+                
                 Rect chosenZone = spawnZones[Random.Range(0, spawnZones.Count)];
                 float spawnX = Random.Range(chosenZone.x, chosenZone.x + chosenZone.width - 1);
                 float spawnY = Random.Range(chosenZone.y, chosenZone.y + chosenZone.height - 1);
-
                 enemy.transform.position = (Vector3) new Vector2(spawnX, spawnY);
+                
+                foreach (var e in enemies)
+                {
+                    if (e != enemy)
+                    {
+                        while (new Vector2(e.transform.position.x - enemy.transform.position.x,
+                                   e.transform.position.y - enemy.transform.position.y).magnitude < 5f)
+                        {
+                            chosenZone = spawnZones[Random.Range(0, spawnZones.Count)];
+                            spawnX = Random.Range(chosenZone.x, chosenZone.x + chosenZone.width - 1);
+                            spawnY = Random.Range(chosenZone.y, chosenZone.y + chosenZone.height - 1);
+                            enemy.transform.position = (Vector3) new Vector2(spawnX, spawnY);
+                        }
+                    }
+                }
+                
                 enemy.GetComponent<SpriteRenderer>().enabled = true;
                 enemy.GetComponent<Collider2D>().enabled = true;
                 Queen enemyQueen = enemy.GetComponent<Queen>();
-                enemyQueen.maxNumAnts = playerQueen.maxNumAnts * 4;
-                enemyQueen.numActiveAnts = (int) Random.Range(20, playerQueen.maxNumAnts * 2);
+                enemyQueen.maxNumAnts = playerQueen.maxNumAnts;
+                enemyQueen.numActiveAnts = (int) Random.Range(playerQueen.numActiveAnts / 3f, playerQueen.numActiveAnts * 2f);
+                
+                //Some check for num ants...
+                int numAnts = GameObject.FindObjectsOfType<Ant>().Length;
+                Debug.Log(numAnts);
+                if (numAnts > maxAntsAllowed)
+                {
+                    while (numAnts > maxAntsAllowed)
+                    {
+                        enemyQueen.numActiveAnts /= 2;
+                        numAnts = GameObject.FindObjectsOfType<Ant>().Length;
+                    }
+                }
+                
+                // Increase these as game goes on
                 enemyQueen.moveSpeed = Random.Range(minEnemyMoveSpeed, maxEnemyMoveSpeed);
-                enemyQueen.antMass = enemyAntMass;
-                enemyQueen.antDrag = enemyAntDrag;
-                enemyQueen.antAngularDrag = enemyAntAngularDrag;
-                enemyQueen.antSpeedKillThreshold = enemyAntKillThreshold;
-                enemyQueen.queenSpeedKillThreshold = enemyQueenKillThreshold;
-                enemyQueen.attractForce = enemyAttractForce;
-                enemyQueen.repulseForce = enemyRepulseForce;
-                enemyQueen.suckMultipler = enemySuckMultiplier;
+                enemyQueen.antMass = playerInitAntMass;
+                enemyQueen.antDrag = playerInitAntDrag;
+                enemyQueen.antAngularDrag = playerInitAntAngularDrag;
+                enemyQueen.antSpeedKillThreshold = playerAntKillThreshold + Random.Range(-.5f, .5f);
+                enemyQueen.queenSpeedKillThreshold = playerAntKillThreshold * 2 + Random.Range(-.5f, .5f);
+                enemyQueen.attractForce = playerQueen.attractForce + Random.Range(-5f, 15f);
+                enemyQueen.repulseForce = playerQueen.repulseForce + Random.Range(-5f, 15f);
+                enemyQueen.suckMultipler = playerQueen.suckMultipler + Random.Range(-2f, 5f);
                 
                 //Assigning enemy brain
                 if (enemyQueen.brain != null)
@@ -218,8 +259,7 @@ public class GameManager : MonoBehaviour
                         break;
                     case 3:
                         enemyQueen.brain = enemyQueen.gameObject.AddComponent<TurtleBrain>();
-                        enemyQueen.numActiveAnts *= 2;
-                        enemyQueen.SetAntSpeedKillThreshold(enemyAntKillThreshold / 2);
+                        enemyQueen.numActiveAnts = (int)(enemyQueen.numActiveAnts * 4f);
                         enemy.name = "Turtle";
                         enemyQueen.SetColor(turtleCol);
                         break;
@@ -227,7 +267,8 @@ public class GameManager : MonoBehaviour
                     case 5:
                         enemyQueen.brain = enemyQueen.gameObject.AddComponent<SniperBrain>();
                         enemyQueen.numActiveAnts /= 2;
-                        enemyQueen.repulseForce *= 2;
+                        enemyQueen.repulseForce *= 4;
+                        enemyQueen.suckMultipler *= 2;
                         enemy.name = "Sniper";
                         enemyQueen.SetColor(sniperCol);
                         break;
@@ -247,18 +288,26 @@ public class GameManager : MonoBehaviour
         UpdateEnemies();
         
         // DEBUG
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            SpawnEnemy();
-        }
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            playerQueen.ScaleAntSize(1.2f);
-        }
+        // if (Input.GetKeyDown(KeyCode.E))
+        // {
+        //     SpawnEnemy();
+        // }
+        // if (Input.GetKeyDown(KeyCode.S))
+        // {
+        //     playerQueen.ScaleAntSize(1.2f);
+        // }
     }
 
     void UpdatePlayer()
     {
+        // foreach (BoxCollider2D boxcol in GameObject.FindObjectsOfType<BoxCollider2D>())
+        // {
+        //     // foreach (var ant in playerQueen._ants)
+        //     // {
+        //     //     Physics2D.IgnoreCollision(boxcol, ant.GetComponent<Collider2D>(), false);
+        //     // }
+        // }
+        
         //======= FORCE =======
         if (Input.GetMouseButton(0))
         {
@@ -270,7 +319,15 @@ public class GameManager : MonoBehaviour
         if (Input.GetMouseButton(1))
         {
             playerQueen.currentCommand = AntCommand.SUCK;
+            // foreach (BoxCollider2D boxcol in GameObject.FindObjectsOfType<BoxCollider2D>())
+            // {
+            //     foreach (var ant in playerQueen._ants)
+            //     {
+            //         Physics2D.IgnoreCollision(boxcol, ant.GetComponent<Collider2D>(), true);
+            //     }
+            // }
         }
+        
     }
 
     void UpdateEnemies()
@@ -304,6 +361,71 @@ public class GameManager : MonoBehaviour
             _velocity = direction * playerSpeed;
             player.GetComponent<Rigidbody2D>().position += (Vector2)_velocity * Time.deltaTime;
         }
+        foreach (var ant in playerQueen._ants)
+        {
+            Transform antTrans = ant.gameObject.transform;
+            Rigidbody2D antRb = ant.gameObject.GetComponent<Rigidbody2D>();
+            if (antTrans.position.x > stageDimensions.x | antTrans.position.x < -stageDimensions.x
+                                                        | antTrans.position.y > stageDimensions.y | antTrans.position.y < -stageDimensions.y)
+            {
+                antRb.velocity = -antRb.velocity*.75f;
+                
+            }
+        }
+    }
+
+    public void OnKillQueen(Queen q)
+    {
+        SpawnEnemy();
+        switch (q.gameObject.name)
+        {
+            case "Chaser":
+                OnKillChaser(q);
+                break;
+            case "Turtle":
+                OnKillTurtle(q);
+                break;
+            case "Sniper":
+                OnKillSniper(q);
+                break;
+            case "Player":
+                OnKillPlayer();
+                break;
+        }
+    }
+
+    void OnKillPlayer()
+    {
+        GameObject.Find("Timer").GetComponent<Timer>().counting = false;
+        StartCoroutine(loadMainMenu());
+    }
+
+    IEnumerator loadMainMenu()
+    {
+        yield return new WaitForSeconds(6);
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    void OnKillChaser(Queen q)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            playerQueen.enableAnt();
+        }
+        playerQueen.suckMultipler *= 1.1f;
+    }
+    
+    void OnKillTurtle(Queen q)
+    {
+        for (int i = 0; i < playerQueen.numActiveAnts / 3; i++)
+        {
+            playerQueen.enableAnt();
+        }
+    }
+
+    void OnKillSniper(Queen q)
+    {
+        playerQueen.repulseForce *= 1.1f;
     }
 
 

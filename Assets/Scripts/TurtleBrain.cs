@@ -23,9 +23,17 @@ public class TurtleBrain : Brain
 
     public override void Move()
     {
-        Vector3 dir = new Vector3(_playerGo.transform.position.x - gameObject.transform.position.x,
-            _playerGo.transform.position.y - gameObject.transform.position.y, 0).normalized;
-        _queen.velocity = dir * _queen.moveSpeed / 2;
+        Vector3 dir = new Vector3();
+        if (_playerGo != null)
+        {
+            dir = new Vector3(_playerGo.transform.position.x - gameObject.transform.position.x,
+                _playerGo.transform.position.y - gameObject.transform.position.y, 0).normalized;
+        }
+
+        if (_queen != null)
+        {
+            _queen.velocity = dir * _queen.moveSpeed / 2;
+        }
         _rb.position += (Vector2)GetComponent<Queen>().velocity * Time.deltaTime;
     }
 

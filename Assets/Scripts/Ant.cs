@@ -10,7 +10,6 @@ public class Ant : MonoBehaviour
     [Header("Health")] 
     [Tooltip("If this ant is hit by another ant traveling x faster than it is, it will die.")]
     public float speedKillThreshold;
-    
 
     Collider2D _collider;
     public SpriteRenderer spriteRenderer;
@@ -51,9 +50,10 @@ public class Ant : MonoBehaviour
                 Debug.Log("Killed a(n) " + collision.gameObject.tag + " ant.");
                 collision.gameObject.SetActive(false);
             }
-        } else if (collision.collider.gameObject.GetComponent<Queen>() != null)
+        } 
+        else if (collision.collider.gameObject.GetComponent<Queen>() != null)
         {
-            if (gameObject.GetComponent<Rigidbody2D>().velocity.magnitude > collision.rigidbody.velocity.magnitude)
+            if (gameObject.GetComponent<Rigidbody2D>().velocity.magnitude > collision.rigidbody.velocity.magnitude * collision.gameObject.GetComponent<Queen>().queenSpeedKillThreshold)
             {
                 Debug.Log("Killed a(n) " + collision.gameObject.tag + " queen.");
                 collision.gameObject.GetComponent<Queen>().DetachAnts();

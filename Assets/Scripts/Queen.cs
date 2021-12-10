@@ -46,6 +46,7 @@ public class Queen : MonoBehaviour
     public Vector3 velocity;
     public float moveSpeed;
 
+
     // Start is called before the first frame update
     void Start()
     {
@@ -87,7 +88,7 @@ public class Queen : MonoBehaviour
 
     [ContextMenu("Enable Ant")]
     // Enables one ant, and gives it a random position inside the spawn range.
-    void enableAnt()
+    public void enableAnt()
     {
         foreach (Ant a in _ants)
         {
@@ -95,7 +96,7 @@ public class Queen : MonoBehaviour
             {
                 a.gameObject.transform.position = ((Vector2)transform.position + Random.insideUnitCircle) * _antSpawnRadius;
                 Color col = a.GetComponent<SpriteRenderer>().color;
-                col.a = 1f;
+                col.a = 0f;
                 a.GetComponent<SpriteRenderer>().color = col;
                 a.GetComponent<Collider2D>().enabled = true;
                 a.gameObject.transform.parent = transform;
@@ -104,6 +105,7 @@ public class Queen : MonoBehaviour
                 a.GetComponent<Rigidbody2D>().angularDrag = antAngularDrag;
                 a.speedKillThreshold = antSpeedKillThreshold;
                 a.gameObject.SetActive(true);
+                StartCoroutine(FadeAnt(a.GetComponent<SpriteRenderer>(), 1f, false));
                 break;
             }
         }
@@ -242,26 +244,33 @@ public class Queen : MonoBehaviour
             {
                 a.GetComponent<Collider2D>().enabled = false;
                 a.gameObject.transform.parent = null;
-                StartCoroutine(FadeAnt(a.GetComponent<SpriteRenderer>(), 2f));
+                StartCoroutine(FadeAnt(a.GetComponent<SpriteRenderer>(), 1f, true));
             }
         }
+        _gm.OnKillQueen(this);
     }
 
-    IEnumerator FadeAnt(SpriteRenderer sr, float aTime)
+    IEnumerator FadeAnt(SpriteRenderer sr, float aTime, bool fadeOut)
     {
         float alpha = sr.color.a;
+        float goal = (fadeOut) ? 0f : 1f;
         for (float t = 0.0f; t < 1.0f; t += Time.deltaTime / aTime)
         {
-            Color newColor = new Color(sr.color.r, sr.color.g, sr.color.b, Mathf.Lerp(alpha, 0f,t));
+            Color newColor = new Color(sr.color.r, sr.color.g, sr.color.b, Mathf.Lerp(alpha, goal,t));
             sr.color = newColor;
             yield return null;
         }
-        foreach (var a in _ants)
+
+        if (fadeOut)
         {
-            a.gameObject.transform.parent = gameObject.transform;
-            a.gameObject.SetActive(false);
+            foreach (var a in _ants)
+            {
+                a.gameObject.transform.parent = gameObject.transform;
+                a.gameObject.SetActive(false);
+            }
+            gameObject.GetComponent<Queen>().numActiveAnts = 0;
+            gameObject.SetActive(false);
+            _gm.numCurrEnemies--;
         }
-        gameObject.SetActive(false);
-        _gm.numCurrEnemies--;
     }
 }
